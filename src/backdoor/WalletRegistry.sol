@@ -77,7 +77,7 @@ contract WalletRegistry is IProxyCreationCallback, Ownable {
             revert CallerNotFactory();
         }
 
-        if (singleton != singletonCopy) {
+        if (singleton != singletonCopy) { // immutable
             revert FakeSingletonCopy();
         }
 
