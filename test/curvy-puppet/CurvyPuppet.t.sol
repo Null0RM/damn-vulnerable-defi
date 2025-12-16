@@ -158,6 +158,10 @@ contract CurvyPuppetChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_curvyPuppet() public checkSolvedByPlayer {
+        // collect from treasury
+        weth.transferFrom(treasury, player, TREASURY_WETH_BALANCE); // 200 eth
+        IERC20(curvePool.lp_token()).transferFrom(treasury, player, TREASURY_LP_BALANCE); // 6.5 LP
+
         
     }
 
